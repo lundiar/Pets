@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    
+    <title>Pets Per Household</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.0/dist/leaflet.css"/>
+
+    
+
+    <style>
+
+      html { height:100%;}
+
+        body {height:100%;padding: 0;
+          margin: 0;
+        }
+
+        #map {
+        width: 100%;
+         height: 100%;
+        }
+
+        .info {
+z-index: 1000;
+position: absolute;
+right: 20px;
+top: 20px;
+padding: 10px 12px;
+font: 16px Calibri;
+text-align: left;
+background: white;
+background: rgba(255, 255, 255, 0.8);
+box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+border-radius: 5px;
+}
+
+
+.info h1 {
+font-size: 16px;
+margin: 0 0 5px;
+color: #777777;
+}
+.legend {
+z-index: 1000;
+position: absolute;
+left: 20px;
+bottom: 20px;
+padding: 10px 12px;
+font: 14px Calibri;
+background: white;
+background: rgba(255, 255, 255, 0.8);
+box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+border-radius: 5px;
+}
+
+
+.legend i {
+width: 18px;
+height: 16px;
+float: left;
+margin-right: 8px;
+opacity: 1;
+}
+
+h2 {
+  position: absolute;
+			margin-top: 0;
+			top: 10px;
+			left: 400px;
+			font-size: 2em;
+			font-family: "Georgia", serif;
+			letter-spacing: .04em;
+			padding: 10px 15px;
+			background: rgba(256, 256, 256);
+			border: 1px solid black;
+			border-radius: 3px;
+			z-index: 800;
+}
+
+h3 {
+    Position: absolute;
+      margin-top: 0;
+      bottom: 20px;
+      right: 20px;
+      font-size: 12px;
+      font-family: "Calibri";
+      padding: 10px 12px;
+      background: white;
+      border-radius: 2px;
+      z-index: 800;
+}
+    </style>
+
+    
+
+    <script src="https://unpkg.com/leaflet@1.7.0/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-ajax/2.1.0/leaflet.ajax.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/1.3.4/chroma.min.js"></script>
+
+  </head>
+<body>
+
+  <h2>Average Number of Pets Per USA Household</h2>
+    <div id='map'></div>
+    <div class='legend'></div>
+
+<h3>Map by Autumn Lundi. Data source: <a href="https://worldpopulationreview.com/state-rankings/pet-ownership-statistics-by-state">World Population Review</a>
+
+    <script>
+
+    
+      var map = L.map('map').setView([37.8, -96], 5);
+      L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
+	maxZoom: 18,
+	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+      
+   
+      var grades = [2.5, 2.75, 3.01, 3.25, 3.51, 3.75, 4, 4.25, 4.5];
+
+
+      var colors = chroma.scale(['#FCD7FF', '#70006A']).colors(grades.length);
+
+    
+      function getColor(d) {
+            for (var i = 0; i < grades.length - 1; i++) {
+            if ( d > grades[i] && d < grades[i+1] ) return colors[i];
+            }
+            if (d > grades[grades.length - 1]) return colors[grades.length];
+      }
+
+     
+      function style(feature) {
+      return {
+            weight: 2,
+            opacity: 1,
+            color: 'grey',
+            dashArray: '3',
+            fillOpacity: 0.7,
+            fillColor: getColor(feature.properties.pets)
+      };
+      }
+
+     
+      var geojson = null;
+      
+      var info = L.control();
+      info.onAdd = function (map) {
+          this._div = L.DomUtil.create('div', 'info'); 
+          this.update();
+          return this._div;
+      };
+
+      
+      info.update = function (props) {
+            this._div.innerHTML = '<h4>Dogs and Cats Per Home</h4>' +  (props ?
+            '<b>' + props.name + '</b><br />' + props.pets + ' pets / household'
+            : 'Hover over a state');
+      };
+
+      info.addTo(map);
+
+
+
+      function highlightFeature(e) {
+      
+                  var layer = e.target;
+                  
+                  layer.setStyle({
+                  weight: 3,
+                  opacity: 0.8,
+                  color: 'white',
+                  fillColor: 'lightblue',
+                  fillOpacity: 0.5
+                  });
+                 
+                  layer.bringToFront();
+
+                  
+                  info.update(layer.feature.properties);
+                  }
+                  
+  function resetHighlight(e) {
+                  geojson.resetStyle(e.target);
+                  info.update(); 
+                  }
+
+
+
+    function zoomToFeature(e) {
+                  map.fitBounds(e.target.getBounds());
+                  }
+
+
+    function onEachFeature(feature, layer) {
+                  layer.on({
+                  mouseover: highlightFeature,
+                  click: zoomToFeature,
+                  mouseout: resetHighlight
+                  });
+                  }
+
+
+      geojson = L.geoJson.ajax("assets/pets.geojson", {
+          style: style,
+          onEachFeature: onEachFeature
+      }).addTo(map);
+
+
+      var labels = [];
+
+      for (var i = 0; i < grades.length - 1; i++) {
+          labels.push('<i style="background:' + colors[i] + '"></i> ' + grades[i] + ' - ' + grades[i + 1]);
+      }
+
+      labels.push('<i style="background:' + colors[grades.length - 1] + '"></i> ' + grades[grades.length - 1] + ' +');
+      $(".legend").html(labels.join('<br>'));
+
+
+      map.attributionControl.addAttribution('Population data &copy; <a href="http://census.gov/">US Census Bureau</a> | This map is made by J. Sugg');
+
+    </script>
+
+</body>
+</html>
